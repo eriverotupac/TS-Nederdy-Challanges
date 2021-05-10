@@ -1,6 +1,5 @@
 // example interfaces that can be use
 // TIP: the types mentioned in the interfaces must be fulfilled in order to solve the problem.
-
 interface TemperatureReading {
   time: Date
   temperature: number
@@ -24,25 +23,24 @@ interface CityTemperatures {
   temperatureByDate: DateTemperature[];
 }
 
-function filterByDate(dates: Date[]) {
-  return dates.filter((date, index) => dates.map(d => d.toString()).indexOf(date.toString()) === index);
-}
-
-let cityTemperatureDetail: CityTemperatures[] = [];
+let cityTemperatureDetail: CityTemperatures[];
 
 function processReadings(readings: TemperatureReading[]): void {
-  const cityNames = readings.map(reading => reading.city).filter((city, index, cities) => cities.indexOf(city) === index);
+  const cityNames = readings.reduce((prev: string[], nxt) => (prev.indexOf(nxt.city) === -1 ? [...prev, nxt.city] : prev as string[]), []);
 
   cityTemperatureDetail = cityNames.map((c: string) => {
     const cityFilter = readings.filter(reading => reading.city === c);
-    const dates = filterByDate(cityFilter.map(reading => reading.time));
+    const dates = cityFilter.reduce((acc: Date[], next) =>
+      (acc.map(Number).indexOf(+next.time) === -1 ? [...acc, next.time] : acc), [] as Date[]);
 
     const temperatures: DateTemperature[] = dates.map(d => {
       return {
         time: d,
-        temperature: cityFilter.filter(c => c.time.toString() === d.toString()).map(c => c.temperature)
+        temperature: cityFilter.reduce((acc: number[], next, index) =>
+          ((+next.time) === (+d) ? [...acc, next.temperature] : acc), [] as number[])
       };
     });
+
     return { city: c, temperatureByDate: temperatures };
   });
 }
@@ -50,31 +48,25 @@ function processReadings(readings: TemperatureReading[]): void {
 function getTemperatureSummary(
   date: Date,
   city: string,
-): void {
+): TemperatureSummary | null {
   const cityResult = cityTemperatureDetail.find(cTemp => cTemp.city === city);
   if (!cityResult) {
-    return;
+    return null;
   }
+
   const tempByCity = cityResult.temperatureByDate.find(x => x.time.toString() === date.toString());
   if (!tempByCity)
-    return;
+    return null;
 
   const temperatures = tempByCity.temperature;
   const temperatureSummary: TemperatureSummary = {
     first: temperatures[0],
     last: temperatures[temperatures.length - 1],
-    high: temperatures.reduce((acc, next) => acc > next ? acc : next),
-    low: temperatures.reduce((acc, next) => acc < next ? acc : next),
+    high: Math.max(...temperatures),
+    low: Math.min(...temperatures),
     average: temperatures.reduce((acc, next) => acc + next) / temperatures.length,
   };
-
-  const summary = `First temperature reading for the day ${temperatureSummary.first}
-    Last temperature reading for the day ${temperatureSummary.last}
-    Highest temperature reading for the day ${temperatureSummary.high}
-    Lowest temperature reading for the day ${temperatureSummary.low}
-    Average of temperature readings that day ${temperatureSummary.average}`;
-
-  console.log(summary);
+  return temperatureSummary;
 }
 
 const temp: TemperatureReading[] = [
@@ -115,10 +107,9 @@ const temp: TemperatureReading[] = [
   },
 ];
 
-
 processReadings(temp);
-getTemperatureSummary(new Date("1/1/2021"), 'Mexico');
-getTemperatureSummary(new Date("1/1/2021"), 'Utah');
+getTemperatureSummary(new Date('1/2/2021'), 'Utah');
+getTemperatureSummary(new Date('3/12/2021'), 'New York');
 
 exports.processReadings = processReadings
 exports.getTemperatureSummary = getTemperatureSummary
